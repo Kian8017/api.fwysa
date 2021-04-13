@@ -12,7 +12,8 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	// couchdbUrl := os.Getenv("COUCHDB_URL")
+	couchdbUrl := os.Getenv("COUCHDB_URL")
+	couchdbName := os.Getenv("COUCHDB_NAME")
 	listenAddr := os.Getenv("LISTEN_ADDR")
 
 	// actions:
@@ -20,7 +21,7 @@ func main() {
 	//   genpendingauth
 	//   createauth
 
-	s := NewServer(listenAddr)
+	s := NewServer(listenAddr, couchdbUrl, couchdbName)
 
 	s.Run()
 }
