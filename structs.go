@@ -62,3 +62,23 @@ func NewLoginDetails(r, uid, dbs string) LoginDetails {
 func LoginHelper(r, uid, dbs string) []byte {
 	return NewLoginDetails(r, uid, dbs).JSON()
 }
+
+type PendingAuthDocument struct {
+	Id      string `json:"_id"`
+	Type    string `json:"type"`
+	Created string `json:"created"`
+	UserID  string `json:"userID"`
+	Code    string `json:"code"`
+	Role    string `json:"role"`
+}
+
+func NewPendingAuthDocument(uid, role string) PendingAuthDocument {
+	return PendingAuthDocument{
+		Id:      genID(),
+		Type:    "pendingauth",
+		Created: genTimestamp(),
+		UserID:  uid,
+		Code:    genDiceware(),
+		Role:    role,
+	}
+}

@@ -30,6 +30,8 @@ func NewServer(la, cdb, dbn string) *Server {
 
 	// Required handlers
 	sm.HandleFunc("/login", a.LoginHandler)
+	sm.HandleFunc("/createauth", a.CreateAuthHandler)
+	sm.HandleFunc("/genpendingauth", a.GenPendingAuthHandler)
 
 	// Helper handlers
 	sm.HandleFunc("/hash", a.HashHandler)
@@ -125,6 +127,67 @@ func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(LoginHelper(ad.Role, ad.UserID, s.dbAccessString))
 }
 
+func (s *Server) GenPendingAuthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	query := r.URL.Query()
+	username, ok := query["user"]
+	if !ok {
+		w.Write(ErrHelper("username not provided"))
+		return
+	}
+
+	pass, ok := query["pass"]
+	if !ok {
+		w.Write(ErrHelper("password not provided"))
+		return
+	}
+
+	newRole, ok := query["role"]
+	if !ok {
+		w.Write(ErrHelper("new role not provided"))
+		return
+	}
+
+	newUserID, ok := query["userid"]
+	if !ok {
+		w.Write(ErrHelper("new user id not provided"))
+		return
+	}
+
+	ad, deets := s.Login(username[0], pass[0])
+
+	if deets != "" { // Something happened
+		w.Write(ErrHelper(deets))
+		return
+	}
+
+	// Is this user an admin?
+
+	if ad.Role != "Admin" {
+		w.Write(ErrHelper("unauthorized"))
+		return
+	}
+
+	pa := NewPendingAuthDocument(newUserID[0], newRole[0])
+	// Put in DB
+
+	_, err := s.db.Put(context.TODO(), pa.Id, pa)
+	if err != nil {
+		log.Println("Error saving pending auth ", err)
+		w.Write(ErrHelper("internal error"))
+		return
+	}
+
+	w.Write(SimpleHelper(pa.Code))
+
+}
+
+func (s *Server) CreateAuthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+}
+
 // Helper Handlers
 func (s *Server) HashHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -155,10 +218,5 @@ func (s *Server) RootHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) DicewareHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	code, ok := genDiceware()
-	if !ok {
-		w.Write(ErrHelper("unable to generate diceware passphrase"))
-	} else {
-		w.Write(SimpleHelper(code))
-	}
+	w.Write(SimpleHelper(genDiceware()))
 }

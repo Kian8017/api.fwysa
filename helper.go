@@ -30,12 +30,11 @@ func genTimestamp() string {
 	return t.Format(time.RFC3339)
 }
 
-func genDiceware() (string, bool) {
+func genDiceware() string {
 	words, err := diceware.Generate(3)
 	if err != nil {
 		log.Fatal("Unable to generate diceware phrase", err)
-		return "", false
-	} else {
-		return strings.Join(words, " "), true
+		return ""
 	}
+	return strings.Join(words, " ")
 }
