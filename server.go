@@ -6,14 +6,16 @@ import (
 	"github.com/go-kivik/kivik"
 	"log"
 	"net/http"
+	"path"
 )
 
 type Server struct {
-	m           *http.ServeMux
-	db          *kivik.DB
-	listenAddr  string
-	couchdbUrl  string
-	couchdbName string
+	m              *http.ServeMux
+	db             *kivik.DB
+	listenAddr     string
+	couchdbUrl     string
+	couchdbName    string
+	dbAccessString string
 }
 
 func NewServer(la, cdb, dbn string) *Server {
@@ -21,6 +23,7 @@ func NewServer(la, cdb, dbn string) *Server {
 	a.listenAddr = la
 	a.couchdbUrl = cdb
 	a.couchdbName = dbn
+	a.dbAccessString = path.Join(a.couchdbUrl, a.couchdbName)
 
 	sm := http.NewServeMux()
 	a.m = sm
@@ -52,6 +55,70 @@ func (s *Server) Run() {
 	log.Fatal(http.ListenAndServe(s.listenAddr, s.m))
 }
 
+func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	query := r.URL.Query()
+	username, ok := query["user"]
+	if !ok {
+		w.Write(ErrHelper("username not provided"))
+		return
+	}
+
+	pass, ok := query["pass"]
+	if !ok {
+		w.Write(ErrHelper("password not provided"))
+		return
+	}
+
+	q := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"type":     "auth",
+			"username": username[0],
+		},
+	}
+
+	rows, err := s.db.Find(context.TODO(), q)
+	if err != nil {
+		log.Println("Error retrieving login details", err)
+		w.Write(ErrHelper("internal error"))
+		return
+	}
+
+	if !rows.Next() { // Either no documents or an error
+		err = rows.Err()
+		if err != nil {
+			log.Println("Error trying to access results ", err)
+			w.Write(ErrHelper("internal error"))
+		} else {
+			w.Write(ErrHelper("no such user"))
+		}
+		return
+	}
+
+	var cur AuthDocument
+	err = rows.ScanDoc(&cur)
+	if err != nil {
+		log.Println("Unable to unmarshal AuthDocument ", err)
+		w.Write(ErrHelper("internal error"))
+		return
+	}
+
+	// Now confirm password before handing back DB details
+
+	newHash := hash(pass[0])
+
+	if newHash != cur.Password { // Incorrect password
+		log.Println("Incorrect login attempt for user", cur.Username)
+		w.Write(ErrHelper("incorrect password"))
+		return
+	}
+
+	// We're good to go! Send them the details...
+
+	w.Write(LoginHelper(cur.Role, cur.UserID, s.dbAccessString))
+}
+
+// Helper Handlers
 func (s *Server) HashHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	query := r.URL.Query()
@@ -64,12 +131,6 @@ func (s *Server) HashHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(SimpleHelper(hash(pass[0])))
 }
 
-func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(SimpleHelper("OK"))
-}
-
-// Helper Handlers
 func (s *Server) TimestampHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(SimpleHelper(genTimestamp()))
