@@ -69,14 +69,14 @@ func (s *Server) Login(user, pass string) (AuthDocument, string) {
 	rows, err := s.db.Find(context.TODO(), q)
 	if err != nil {
 		log.Println("Error retrieving login details", err)
-		return AuthDocument{}, "internal error"
+		return AuthDocument{}, InternalServerError
 	}
 
 	if !rows.Next() { // Either no documents or an error
 		err = rows.Err()
 		if err != nil {
 			log.Println("Error trying to access results ", err)
-			return AuthDocument{}, "internal error"
+			return AuthDocument{}, InternalServerError
 		} else {
 			log.Println("No such user ", user)
 			return AuthDocument{}, "no such user"
@@ -87,7 +87,7 @@ func (s *Server) Login(user, pass string) (AuthDocument, string) {
 	err = rows.ScanDoc(&cur)
 	if err != nil {
 		log.Println("Unable to unmarshal AuthDocument ", err)
-		return AuthDocument{}, "internal error"
+		return AuthDocument{}, InternalServerError
 	}
 
 	// Now confirm password before handing back DB details
@@ -107,13 +107,13 @@ func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	username, ok := query["user"]
 	if !ok {
-		w.Write(ErrHelper("username not provided"))
+		w.Write(ErrHelper(UsernameNotProvided))
 		return
 	}
 
 	pass, ok := query["pass"]
 	if !ok {
-		w.Write(ErrHelper("password not provided"))
+		w.Write(ErrHelper(PasswordNotProvided))
 		return
 	}
 	// We're good to go! Send them the details...
@@ -133,25 +133,25 @@ func (s *Server) GenPendingAuthHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	username, ok := query["user"]
 	if !ok {
-		w.Write(ErrHelper("username not provided"))
+		w.Write(ErrHelper(UsernameNotProvided))
 		return
 	}
 
 	pass, ok := query["pass"]
 	if !ok {
-		w.Write(ErrHelper("password not provided"))
+		w.Write(ErrHelper(PasswordNotProvided))
 		return
 	}
 
 	newRole, ok := query["role"]
 	if !ok {
-		w.Write(ErrHelper("new role not provided"))
+		w.Write(ErrHelper(RoleNotProvided))
 		return
 	}
 
 	newUserID, ok := query["userid"]
 	if !ok {
-		w.Write(ErrHelper("new user id not provided"))
+		w.Write(ErrHelper(UserIDNotProvided))
 		return
 	}
 
@@ -165,7 +165,7 @@ func (s *Server) GenPendingAuthHandler(w http.ResponseWriter, r *http.Request) {
 	// Is this user an admin?
 
 	if ad.Role != "Admin" {
-		w.Write(ErrHelper("unauthorized"))
+		w.Write(ErrHelper(Unauthorized))
 		return
 	}
 
@@ -175,7 +175,7 @@ func (s *Server) GenPendingAuthHandler(w http.ResponseWriter, r *http.Request) {
 	_, err := s.db.Put(context.TODO(), pa.Id, pa)
 	if err != nil {
 		log.Println("Error saving pending auth ", err)
-		w.Write(ErrHelper("internal error"))
+		w.Write(ErrHelper(InternalServerError))
 		return
 	}
 
@@ -189,19 +189,19 @@ func (s *Server) CreateAuthHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	username, ok := query["user"]
 	if !ok {
-		w.Write(ErrHelper("username not provided"))
+		w.Write(ErrHelper(UsernameNotProvided))
 		return
 	}
 
 	pass, ok := query["pass"]
 	if !ok {
-		w.Write(ErrHelper("password not provided"))
+		w.Write(ErrHelper(PasswordNotProvided))
 		return
 	}
 
 	code, ok := query["code"]
 	if !ok {
-		w.Write(ErrHelper("code not provided"))
+		w.Write(ErrHelper(CodeNotProvided))
 		return
 	}
 
@@ -214,12 +214,12 @@ func (s *Server) CreateAuthHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.db.Find(context.TODO(), usernameExists)
 	if err != nil {
 		log.Println("Error retrieving existing usernames ", err)
-		w.Write(ErrHelper("internal error"))
+		w.Write(ErrHelper(InternalServerError))
 		return
 	}
 	if rows.Next() { // There is a currently matching document...
 		log.Println("Can't create a duplicate with the same username", rows.Err())
-		w.Write(ErrHelper("username already in use"))
+		w.Write(ErrHelper(UsernameInUse))
 		return
 	}
 
@@ -234,7 +234,7 @@ func (s *Server) CreateAuthHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err = s.db.Find(context.TODO(), q)
 	if err != nil {
 		log.Println("Error retrieving login details", err)
-		w.Write(ErrHelper("internal error"))
+		w.Write(ErrHelper(InternalServerError))
 		return
 	}
 
@@ -242,9 +242,9 @@ func (s *Server) CreateAuthHandler(w http.ResponseWriter, r *http.Request) {
 		err = rows.Err()
 		if err != nil {
 			log.Println("Error trying to access results ", err)
-			w.Write(ErrHelper("internal error"))
+			w.Write(ErrHelper(InternalServerError))
 		} else {
-			w.Write(ErrHelper("no such pending auth"))
+			w.Write(ErrHelper(NoSuchPendingAuth))
 		}
 		return
 	}
@@ -253,7 +253,7 @@ func (s *Server) CreateAuthHandler(w http.ResponseWriter, r *http.Request) {
 	err = rows.ScanDoc(&cur)
 	if err != nil {
 		log.Println("Unable to unmarshal PendingAuthDocument ", err)
-		w.Write(ErrHelper("internal error"))
+		w.Write(ErrHelper(InternalServerError))
 		return
 	}
 
@@ -264,17 +264,17 @@ func (s *Server) CreateAuthHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = s.db.Put(context.TODO(), nad.Id, nad)
 	if err != nil {
 		log.Println("Error creating new auth document ", err)
-		w.Write(ErrHelper("internal error"))
+		w.Write(ErrHelper(InternalServerError))
 		return
 	}
 
 	_, err = s.db.Delete(context.TODO(), cur.Id, cur.Rev)
 	if err != nil {
 		log.Println("Error deleting old pending auth ", err)
-		w.Write(ErrHelper("internal error"))
+		w.Write(ErrHelper(InternalServerError))
 	}
 
-	w.Write(SimpleHelper("success"))
+	w.Write(SimpleHelper(Success))
 }
 
 // Helper Handlers
@@ -283,7 +283,7 @@ func (s *Server) HashHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	pass, ok := query["pass"]
 	if !ok {
-		w.Write(ErrHelper("pass query parameter not present"))
+		w.Write(ErrHelper(PasswordNotProvided))
 		return
 	}
 
@@ -302,7 +302,7 @@ func (s *Server) IdHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) RootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(SimpleHelper("welcome to the fwysa api server"))
+	w.Write(SimpleHelper(WelcomeMessage))
 }
 
 func (s *Server) DicewareHandler(w http.ResponseWriter, r *http.Request) {
