@@ -186,6 +186,95 @@ func (s *Server) GenPendingAuthHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) CreateAuthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	query := r.URL.Query()
+	username, ok := query["user"]
+	if !ok {
+		w.Write(ErrHelper("username not provided"))
+		return
+	}
+
+	pass, ok := query["pass"]
+	if !ok {
+		w.Write(ErrHelper("password not provided"))
+		return
+	}
+
+	code, ok := query["code"]
+	if !ok {
+		w.Write(ErrHelper("code not provided"))
+		return
+	}
+
+	usernameExists := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"type":     "auth",
+			"username": username[0],
+		},
+	}
+	rows, err := s.db.Find(context.TODO(), usernameExists)
+	if err != nil {
+		log.Println("Error retrieving existing usernames ", err)
+		w.Write(ErrHelper("internal error"))
+		return
+	}
+	if rows.Next() { // There is a currently matching document...
+		log.Println("Can't create a duplicate with the same username", rows.Err())
+		w.Write(ErrHelper("username already in use"))
+		return
+	}
+
+	// selector
+	q := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"type": "pendingauth",
+			"code": code[0],
+		},
+	}
+
+	rows, err = s.db.Find(context.TODO(), q)
+	if err != nil {
+		log.Println("Error retrieving login details", err)
+		w.Write(ErrHelper("internal error"))
+		return
+	}
+
+	if !rows.Next() { // Either no documents or an error
+		err = rows.Err()
+		if err != nil {
+			log.Println("Error trying to access results ", err)
+			w.Write(ErrHelper("internal error"))
+		} else {
+			w.Write(ErrHelper("no such pending auth"))
+		}
+		return
+	}
+
+	var cur PendingAuthDocument
+	err = rows.ScanDoc(&cur)
+	if err != nil {
+		log.Println("Unable to unmarshal PendingAuthDocument ", err)
+		w.Write(ErrHelper("internal error"))
+		return
+	}
+
+	// FIXME check for existing username
+
+	nad := NewAuthDocument(cur.UserID, username[0], cur.Role, pass[0])
+
+	_, err = s.db.Put(context.TODO(), nad.Id, nad)
+	if err != nil {
+		log.Println("Error creating new auth document ", err)
+		w.Write(ErrHelper("internal error"))
+		return
+	}
+
+	_, err = s.db.Delete(context.TODO(), cur.Id, cur.Rev)
+	if err != nil {
+		log.Println("Error deleting old pending auth ", err)
+		w.Write(ErrHelper("internal error"))
+	}
+
+	w.Write(SimpleHelper("success"))
 }
 
 // Helper Handlers

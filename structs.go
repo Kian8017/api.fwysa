@@ -32,12 +32,25 @@ func SimpleHelper(r string) []byte {
 
 type AuthDocument struct {
 	Id       string `json:"_id"`
-	Rev      string `json:"_rev"`
+	Rev      string `json:"_rev,omitempty"`
 	Type     string `json:"type"`
+	Created  string `json:"created"`
 	UserID   string `json:"userID"`
 	Username string `json:"username"`
-	Role     string `json:"role"`
 	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+func NewAuthDocument(uid, un, r, p string) AuthDocument {
+	return AuthDocument{
+		Id:       genID(),
+		Type:     "auth",
+		Created:  genTimestamp(),
+		UserID:   uid,
+		Username: un,
+		Role:     r,
+		Password: hash(p),
+	}
 }
 
 type LoginDetails struct {
@@ -65,6 +78,7 @@ func LoginHelper(r, uid, dbs string) []byte {
 
 type PendingAuthDocument struct {
 	Id      string `json:"_id"`
+	Rev     string `json:"_rev,omitempty"`
 	Type    string `json:"type"`
 	Created string `json:"created"`
 	UserID  string `json:"userID"`
