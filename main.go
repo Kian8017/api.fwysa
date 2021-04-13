@@ -17,7 +17,6 @@ func main() {
 	listenAddr := os.Getenv("LISTEN_ADDR")
 
 	// actions:
-	//   login
 	//   genpendingauth
 	//   createauth
 

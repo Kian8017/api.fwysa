@@ -55,6 +55,51 @@ func (s *Server) Run() {
 	log.Fatal(http.ListenAndServe(s.listenAddr, s.m))
 }
 
+func (s *Server) Login(user, pass string) (AuthDocument, string) {
+	// selector
+	q := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"type":     "auth",
+			"username": user,
+		},
+	}
+
+	rows, err := s.db.Find(context.TODO(), q)
+	if err != nil {
+		log.Println("Error retrieving login details", err)
+		return AuthDocument{}, "internal error"
+	}
+
+	if !rows.Next() { // Either no documents or an error
+		err = rows.Err()
+		if err != nil {
+			log.Println("Error trying to access results ", err)
+			return AuthDocument{}, "internal error"
+		} else {
+			log.Println("No such user ", user)
+			return AuthDocument{}, "no such user"
+		}
+	}
+
+	var cur AuthDocument
+	err = rows.ScanDoc(&cur)
+	if err != nil {
+		log.Println("Unable to unmarshal AuthDocument ", err)
+		return AuthDocument{}, "internal error"
+	}
+
+	// Now confirm password before handing back DB details
+
+	newHash := hash(pass)
+
+	if newHash != cur.Password { // Incorrect password
+		log.Println("Incorrect login attempt for user", cur.Username)
+		return AuthDocument{}, "incorrect password"
+	}
+
+	return cur, ""
+}
+
 func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	query := r.URL.Query()
@@ -69,53 +114,15 @@ func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write(ErrHelper("password not provided"))
 		return
 	}
-
-	q := map[string]interface{}{
-		"selector": map[string]interface{}{
-			"type":     "auth",
-			"username": username[0],
-		},
-	}
-
-	rows, err := s.db.Find(context.TODO(), q)
-	if err != nil {
-		log.Println("Error retrieving login details", err)
-		w.Write(ErrHelper("internal error"))
-		return
-	}
-
-	if !rows.Next() { // Either no documents or an error
-		err = rows.Err()
-		if err != nil {
-			log.Println("Error trying to access results ", err)
-			w.Write(ErrHelper("internal error"))
-		} else {
-			w.Write(ErrHelper("no such user"))
-		}
-		return
-	}
-
-	var cur AuthDocument
-	err = rows.ScanDoc(&cur)
-	if err != nil {
-		log.Println("Unable to unmarshal AuthDocument ", err)
-		w.Write(ErrHelper("internal error"))
-		return
-	}
-
-	// Now confirm password before handing back DB details
-
-	newHash := hash(pass[0])
-
-	if newHash != cur.Password { // Incorrect password
-		log.Println("Incorrect login attempt for user", cur.Username)
-		w.Write(ErrHelper("incorrect password"))
-		return
-	}
-
 	// We're good to go! Send them the details...
 
-	w.Write(LoginHelper(cur.Role, cur.UserID, s.dbAccessString))
+	ad, deets := s.Login(username[0], pass[0])
+	if deets != "" { // Something happened
+		w.Write(ErrHelper(deets))
+		return
+	}
+
+	w.Write(LoginHelper(ad.Role, ad.UserID, s.dbAccessString))
 }
 
 // Helper Handlers
