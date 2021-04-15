@@ -69,7 +69,7 @@ func (l LoginDetails) JSON() []byte {
 }
 
 func NewLoginDetails(r, uid, dbs string) LoginDetails {
-	return LoginDetails{Ok: true, UserID: uid, DBString: dbs}
+	return LoginDetails{Ok: true, Role: r, UserID: uid, DBString: dbs}
 }
 
 func LoginHelper(r, uid, dbs string) []byte {
