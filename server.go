@@ -4,13 +4,14 @@ import (
 	"context"
 	_ "github.com/go-kivik/couchdb"
 	"github.com/go-kivik/kivik"
+	"github.com/rs/cors"
 	"log"
 	"net/http"
 	"path"
 )
 
 type Server struct {
-	m              *http.ServeMux
+	handler        http.Handler
 	db             *kivik.DB
 	listenAddr     string
 	couchdbUrl     string
@@ -26,7 +27,10 @@ func NewServer(la, cdb, dbn string) *Server {
 	a.dbAccessString = path.Join(a.couchdbUrl, a.couchdbName)
 
 	sm := http.NewServeMux()
-	a.m = sm
+
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+	})
 
 	// Required handlers
 	sm.HandleFunc("/login", a.LoginHandler)
@@ -49,12 +53,14 @@ func NewServer(la, cdb, dbn string) *Server {
 	}
 	a.db = dbclient.DB(context.TODO(), a.couchdbName)
 
+	a.handler = c.Handler(sm)
+
 	return &a
 }
 
 func (s *Server) Run() {
 	log.Println("Server listening at", s.listenAddr)
-	log.Fatal(http.ListenAndServe(s.listenAddr, s.m))
+	log.Fatal(http.ListenAndServe(s.listenAddr, s.handler))
 }
 
 func (s *Server) Login(user, pass string) (AuthDocument, string) {
