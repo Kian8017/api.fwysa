@@ -7,7 +7,6 @@ import (
 	"github.com/rs/cors"
 	"log"
 	"net/http"
-	"path"
 )
 
 type Server struct {
@@ -24,7 +23,7 @@ func NewServer(la, cdb, dbn string) *Server {
 	a.listenAddr = la
 	a.couchdbUrl = cdb
 	a.couchdbName = dbn
-	a.dbAccessString = path.Join(a.couchdbUrl, a.couchdbName)
+	a.dbAccessString = a.couchdbUrl + "/" + a.couchdbName
 
 	sm := http.NewServeMux()
 
