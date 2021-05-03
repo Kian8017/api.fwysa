@@ -103,7 +103,7 @@ func (s *Server) Login(user, pass string) (AuthDocument, string) {
 		log.Println("Incorrect login attempt for user", cur.Username)
 		return AuthDocument{}, "incorrect password"
 	}
-
+	log.Println("Successful login attempt for ", cur.Username)
 	return cur, ""
 }
 

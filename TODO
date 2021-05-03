@@ -1,0 +1,1 @@
+Rewrite front end to take advantage of new backend structure (no need to use action url parameter, we now have separate paths for separate api calls)
