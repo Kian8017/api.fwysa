@@ -8,6 +8,7 @@ import (
 	"github.com/rs/cors"
 	"log"
 	"net/http"
+	"time"
 )
 
 type Server struct {
@@ -19,6 +20,7 @@ type Server struct {
 	dbAccessString  string
 	googleSheetCode string
 	frontPage       []PageSection
+	lastPageRefresh time.Time
 }
 
 func NewServer(la, cdb, dbn, gsc string) *Server {
@@ -117,12 +119,20 @@ func (s *Server) Login(user, pass string) (AuthDocument, string) {
 }
 
 func (s *Server) FetchFrontPage() {
+	// Check that we haven't refreshed
+	d, _ := time.ParseDuration("1m")
+	if time.Since(s.lastPageRefresh) < d {
+		log.Println("Not refreshing, too soon")
+		return
+	}
+
 	log.Println("Fetching front page...")
 	ret, ok := getFrontPage(s.googleSheetCode)
 	if ok != "" {
 		log.Fatal(ok)
 	}
 	s.frontPage = ret
+	s.lastPageRefresh = time.Now()
 	log.Println("Finished fetching front page")
 }
 
