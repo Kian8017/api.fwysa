@@ -41,6 +41,23 @@ type PageSection struct {
 }
 */
 
+func fetchDoc(u string) (string, string) {
+	url := generateDocURL(u)
+
+	log.Println("Fetching Google Doc: ", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", ErrorFetchingPage
+	} else {
+		defer resp.Body.Close()
+		contents, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", ErrorReadingResponse
+		}
+		return string(contents), ""
+	}
+}
+
 func generateEntries(gs GoogleSheet) ([]PageSection, string) {
 	ps := make(map[int]PageSection) // row -> PageSection
 
@@ -81,7 +98,16 @@ func generateEntries(gs GoogleSheet) ([]PageSection, string) {
 			curPS.Highlighted = contents
 		case 4: // Google Doc Link
 			// FIXME: Fetch contents here...
-			curPS.Contents = contents
+			if (row == 1) || (contents == "") { // Empty parent section, or header
+				curPS.Contents = ""
+			} else {
+				doc, res := fetchDoc(contents)
+				if res != "" {
+					curPS.Contents = res
+				} else {
+					curPS.Contents = doc
+				}
+			}
 		default:
 			log.Fatal("Unknown column, ", col)
 		}
@@ -104,6 +130,10 @@ func generateEntries(gs GoogleSheet) ([]PageSection, string) {
 
 func generateSheetURL(sheetID string) string {
 	return "https://spreadsheets.google.com/feeds/cells/" + sheetID + "/1/public/full?alt=json"
+}
+
+func generateDocURL(u string) string {
+	return u + "?embedded=true"
 }
 
 func getFrontPage(gsc string) ([]PageSection, string) {
