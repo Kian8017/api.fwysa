@@ -48,6 +48,7 @@ func NewServer(la, cdb, dbn, gsc string) *Server {
 
 	// Front Page Handlers (related to auto gen from google docs)
 	sm.HandleFunc("/page", a.FrontPageHandler)
+	sm.HandleFunc("/refreshpage", a.RefreshPageHandler)
 
 	// Root handler
 	sm.HandleFunc("/", a.RootHandler)
@@ -342,4 +343,10 @@ func (s *Server) FrontPageHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Write(SimpleHelper(string(ret)))
 	}
+}
+
+func (s *Server) RefreshPageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	s.FetchFrontPage()
+	w.Write(SimpleHelper(Success))
 }
