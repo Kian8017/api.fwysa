@@ -106,35 +106,29 @@ func generateSheetURL(sheetID string) string {
 	return "https://spreadsheets.google.com/feeds/cells/" + sheetID + "/1/public/full?alt=json"
 }
 
-func ParseStructurePage(gsc string) (string, string) {
+func getFrontPage(gsc string) ([]PageSection, string) {
 	url := generateSheetURL(gsc)
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", ErrorFetchingPage
+		return nil, ErrorFetchingPage
 	} else {
 		defer resp.Body.Close()
 		contents, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return "", ErrorReadingResponse
+			return nil, ErrorReadingResponse
 		}
 
 		var newSheet GoogleSheet
 
 		err = json.Unmarshal(contents, &newSheet)
 		if err != nil {
-			panic(err)
-			// return "", ErrorParsingPage
+			return nil, ErrorParsingPage
 		}
 		entries, ok := generateEntries(newSheet)
 		if ok != "" {
-			return "", ok
+			return nil, ok
 		}
 
-		res, err := json.Marshal(entries)
-		if err != nil {
-			panic(err)
-		}
-		return string(res), ""
+		return entries, ""
 	}
-	// return url, ""
 }

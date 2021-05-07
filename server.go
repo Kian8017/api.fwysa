@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	_ "github.com/go-kivik/couchdb"
 	"github.com/go-kivik/kivik"
 	"github.com/rs/cors"
@@ -17,6 +18,7 @@ type Server struct {
 	couchdbName     string
 	dbAccessString  string
 	googleSheetCode string
+	frontPage       []PageSection
 }
 
 func NewServer(la, cdb, dbn, gsc string) *Server {
@@ -63,6 +65,7 @@ func NewServer(la, cdb, dbn, gsc string) *Server {
 }
 
 func (s *Server) Run() {
+	s.FetchFrontPage()
 	log.Println("Server listening at", s.listenAddr)
 	log.Fatal(http.ListenAndServe(s.listenAddr, s.handler))
 }
@@ -110,6 +113,16 @@ func (s *Server) Login(user, pass string) (AuthDocument, string) {
 	}
 	log.Println("Successful login attempt for ", cur.Username)
 	return cur, ""
+}
+
+func (s *Server) FetchFrontPage() {
+	log.Println("Fetching front page...")
+	ret, ok := getFrontPage(s.googleSheetCode)
+	if ok != "" {
+		log.Fatal(ok)
+	}
+	s.frontPage = ret
+	log.Println("Finished fetching front page")
 }
 
 func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -322,12 +335,11 @@ func (s *Server) DicewareHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) FrontPageHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	// w.Write(SimpleHelper(generateSheetURL(s.googleSheetCode)))
 
-	ret, err := ParseStructurePage(s.googleSheetCode)
-	if err != "" {
-		w.Write(ErrHelper(err))
+	ret, err := json.Marshal(s.frontPage)
+	if err != nil {
+		w.Write(ErrHelper(ErrorMarshalingResponse))
 	} else {
-		w.Write(SimpleHelper(ret))
+		w.Write(SimpleHelper(string(ret)))
 	}
 }
