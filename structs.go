@@ -96,3 +96,12 @@ func NewPendingAuthDocument(uid, role string) PendingAuthDocument {
 		Role:    role,
 	}
 }
+
+type PageSection struct {
+	Parent      int    `json:"parent"`
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	Expanded    bool   `json:"expanded"`
+	Highlighted bool   `json:"highlighted"`
+	Contents    string `json:"contents"`
+}

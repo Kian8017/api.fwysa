@@ -15,4 +15,9 @@ const (
 
 	WelcomeMessage string = "welcome to the fwysa api server"
 	Success        string = "success"
+
+	// FrontPage specific
+	ErrorFetchingPage    string = "error fetching page"
+	ErrorReadingResponse string = "error reading response"
+	ErrorParsingPage     string = "error parsing page"
 )

@@ -10,19 +10,21 @@ import (
 )
 
 type Server struct {
-	handler        http.Handler
-	db             *kivik.DB
-	listenAddr     string
-	couchdbUrl     string
-	couchdbName    string
-	dbAccessString string
+	handler         http.Handler
+	db              *kivik.DB
+	listenAddr      string
+	couchdbUrl      string
+	couchdbName     string
+	dbAccessString  string
+	googleSheetCode string
 }
 
-func NewServer(la, cdb, dbn string) *Server {
+func NewServer(la, cdb, dbn, gsc string) *Server {
 	a := Server{}
 	a.listenAddr = la
 	a.couchdbUrl = cdb
 	a.couchdbName = dbn
+	a.googleSheetCode = gsc
 	a.dbAccessString = a.couchdbUrl + "/" + a.couchdbName
 
 	sm := http.NewServeMux()
@@ -41,6 +43,9 @@ func NewServer(la, cdb, dbn string) *Server {
 	sm.HandleFunc("/timestamp", a.TimestampHandler)
 	sm.HandleFunc("/id", a.IdHandler)
 	sm.HandleFunc("/diceware", a.DicewareHandler)
+
+	// Front Page Handlers (related to auto gen from google docs)
+	sm.HandleFunc("/page", a.FrontPageHandler)
 
 	// Root handler
 	sm.HandleFunc("/", a.RootHandler)
@@ -313,4 +318,16 @@ func (s *Server) RootHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) DicewareHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(SimpleHelper(genDiceware()))
+}
+
+func (s *Server) FrontPageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	// w.Write(SimpleHelper(generateSheetURL(s.googleSheetCode)))
+
+	ret, err := ParseStructurePage(s.googleSheetCode)
+	if err != "" {
+		w.Write(ErrHelper(err))
+	} else {
+		w.Write(SimpleHelper(ret))
+	}
 }
