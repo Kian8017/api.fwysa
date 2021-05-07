@@ -20,4 +20,5 @@ const (
 	ErrorFetchingPage    string = "error fetching page"
 	ErrorReadingResponse string = "error reading response"
 	ErrorParsingPage     string = "error parsing page"
+	ErrorParsingIndex    string = "error parsing an index (row/col)"
 )

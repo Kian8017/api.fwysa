@@ -101,7 +101,7 @@ type PageSection struct {
 	Parent      int    `json:"parent"`
 	ID          int    `json:"id"`
 	Title       string `json:"title"`
-	Expanded    bool   `json:"expanded"`
-	Highlighted bool   `json:"highlighted"`
+	Expanded    string `json:"expanded"`
+	Highlighted string `json:"highlighted"`
 	Contents    string `json:"contents"`
 }
