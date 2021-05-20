@@ -58,6 +58,26 @@ func fetchDoc(u string) (string, string) {
 	}
 }
 
+func preprocessDoc(doc string, id int) string {
+	arr := [3]string{
+		"\"",
+		".",
+		" ",
+	}
+
+	for i := 0; i < 10; i++ { // Iterate between 0 and 9
+		cur := strconv.Itoa(i)
+		for _, e := range arr {
+			o := e + "c" + cur
+			n := e + "c" + strconv.Itoa(id) + cur
+			log.Println("Replacing ", o, " with ", n)
+			doc = strings.ReplaceAll(doc, o, n)
+		}
+	}
+
+	return doc
+}
+
 func generateEntries(gs GoogleSheet) ([]PageSection, string) {
 	ps := make(map[int]PageSection) // row -> PageSection
 
@@ -105,7 +125,8 @@ func generateEntries(gs GoogleSheet) ([]PageSection, string) {
 				if res != "" {
 					curPS.Contents = res
 				} else {
-					curPS.Contents = doc
+					// Fix CSS selector problem
+					curPS.Contents = preprocessDoc(doc, row)
 				}
 			}
 		default:
