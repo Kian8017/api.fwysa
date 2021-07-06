@@ -6,8 +6,10 @@ import (
 	_ "github.com/go-kivik/couchdb"
 	"github.com/go-kivik/kivik"
 	"github.com/rs/cors"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"path/filepath"
 	"time"
 )
 
@@ -19,16 +21,18 @@ type Server struct {
 	couchdbName     string
 	dbAccessString  string
 	googleSheetCode string
+	imagePath       string
 	frontPage       []PageSection
 	lastPageRefresh time.Time
 }
 
-func NewServer(la, cdb, dbn, gsc string) *Server {
+func NewServer(la, cdb, dbn, gsc, ip string) *Server {
 	a := Server{}
 	a.listenAddr = la
 	a.couchdbUrl = cdb
 	a.couchdbName = dbn
 	a.googleSheetCode = gsc
+	a.imagePath = ip
 	a.dbAccessString = a.couchdbUrl + "/" + a.couchdbName
 
 	sm := http.NewServeMux()
@@ -41,6 +45,7 @@ func NewServer(la, cdb, dbn, gsc string) *Server {
 	sm.HandleFunc("/login", a.LoginHandler)
 	sm.HandleFunc("/createauth", a.CreateAuthHandler)
 	sm.HandleFunc("/genpendingauth", a.GenPendingAuthHandler)
+	sm.HandleFunc("/uploadimage", a.UploadImageHandler)
 
 	// Helper handlers
 	sm.HandleFunc("/hash", a.HashHandler)
@@ -359,4 +364,41 @@ func (s *Server) RefreshPageHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	s.FetchFrontPage()
 	w.Write(SimpleHelper(Success))
+}
+
+func (s *Server) UploadImageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	r.ParseMultipartForm(10 << 20)
+	file, handler, err := r.FormFile("image")
+	if err != nil {
+		log.Println("Error retrieving the File")
+		log.Println(err)
+		w.Write(ErrHelper(ErrorGettingFile))
+		return
+	}
+	defer file.Close()
+	log.Printf("Uploaded File: %+v\n", handler.Filename)
+	// log.Printf("File Size: %+v\n", handler.Size)
+	// log.Printf("MIME Header: %+v\n", handler.Header)
+	newID := genID()
+	newFileName := newID + filepath.Ext(handler.Filename)
+	fPath := filepath.Join(s.imagePath, newFileName)
+	log.Printf("New file name/path: %+v\n", fPath)
+
+	imageBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Println(err)
+		w.Write(ErrHelper(InternalServerError))
+		return
+	}
+
+	err = ioutil.WriteFile(fPath, imageBytes, 0644)
+	if err != nil {
+		log.Println(err)
+		w.Write(ErrHelper(InternalServerError))
+		return
+	}
+
+	w.Write(SimpleHelper(newFileName))
 }

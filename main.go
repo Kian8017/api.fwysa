@@ -16,12 +16,13 @@ func main() {
 	couchdbName := os.Getenv("COUCHDB_NAME")
 	listenAddr := os.Getenv("LISTEN_ADDR")
 	sheetCode := os.Getenv("GOOGLE_SHEET_CODE")
+	imagePath := os.Getenv("IMAGE_PATH")
 
 	// actions:
 	//   genpendingauth
 	//   createauth
 
-	s := NewServer(listenAddr, couchdbUrl, couchdbName, sheetCode)
+	s := NewServer(listenAddr, couchdbUrl, couchdbName, sheetCode, imagePath)
 
 	s.Run()
 }

@@ -22,4 +22,7 @@ const (
 	ErrorParsingPage        string = "error parsing page"
 	ErrorParsingIndex       string = "error parsing an index (row/col)"
 	ErrorMarshalingResponse string = "error marshaling response"
+
+	// Upload specific
+	ErrorGettingFile string = "error getting file from request"
 )
